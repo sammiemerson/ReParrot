@@ -1,0 +1,140 @@
+import React, { useState } from "react";
+import { Col, Row } from "react-bootstrap";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import debug from "sabio-debug";
+import emailService from "services/emailService";
+import toastr from "toastr";
+import contactUsFormSchema from "schemas/contactUsFormSchema";
+const _logger = debug.extend("ContactForm");
+
+const ContactForm = () => {
+  const [userFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    message: "",
+  });
+
+  const onSubmit = (values) => {
+    emailService
+      .addContactUsEmail(values)
+      .then(onSubmitSuccess)
+      .catch(onSubmitError);
+    _logger(values);
+  };
+
+  const onSubmitSuccess = (response) => {
+    _logger(response);
+    toastr.success("Email sent!");
+  };
+
+  const onSubmitError = (error) => {
+    _logger(error);
+    toastr.error("Please try again");
+  };
+  return (
+    <Formik
+      enableReinitialize={true}
+      initialValues={userFormData}
+      onSubmit={onSubmit}
+      validationSchema={contactUsFormSchema}
+    >
+      <div className="px-4 px-xl-20 py-8 py-lg-0">
+        <div id="form">
+          <Form>
+            <Row>
+              <Col md={6} sm={12}>
+                <div className="mb-3" controlId="formFirstName">
+                  <label>
+                    First Name:<span className="text-danger">*</span>
+                  </label>
+                  <Field
+                    type="text"
+                    name="firstName"
+                    placeholder="First Name"
+                    className="form-control"
+                  />
+                  <ErrorMessage
+                    name="firstName"
+                    component="div"
+                    className="has-error text-danger"
+                  ></ErrorMessage>
+                </div>
+              </Col>
+
+              <Col md={6} sm={12}>
+                <div className="mb-3" controlId="formLastName">
+                  <label>
+                    Last Name:<span className="text-danger">*</span>
+                  </label>
+                  <Field
+                    type="text"
+                    name="lastName"
+                    placeholder="Last Name"
+                    className="form-control"
+                  />
+                  <ErrorMessage
+                    name="lastName"
+                    component="div"
+                    className="has-error text-danger"
+                  ></ErrorMessage>
+                </div>
+              </Col>
+
+              <Col md={12} sm={12}>
+                <div className="mb-3" controlId="formEmail">
+                  <label>
+                    Email:<span className="text-danger">*</span>
+                  </label>
+                  <Field
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    className="form-control"
+                  />
+                  <ErrorMessage
+                    name="email"
+                    component="div"
+                    className="has-error text-danger"
+                  ></ErrorMessage>
+                </div>
+              </Col>
+
+              <Col md={12} sm={12}>
+                <div className="mb-3" controlId="formMessages">
+                  <label>
+                    Message:<span className="text-danger">*</span>
+                  </label>
+                  <Field
+                    as="textarea"
+                    placeholder="Message"
+                    rows={3}
+                    name="message"
+                    className="form-control"
+                  />
+                  <ErrorMessage
+                    name="message"
+                    component="div"
+                    className="has-error text-danger"
+                  ></ErrorMessage>
+                </div>
+              </Col>
+
+              <Col md={12} sm={12}>
+                <button
+                  type="submit"
+                  name="submit"
+                  className="btn btn-primary"
+                  onSubmit={onSubmit}
+                >
+                  Submit
+                </button>
+              </Col>
+            </Row>
+          </Form>
+        </div>
+      </div>
+    </Formik>
+  );
+};
+export default ContactForm;
