@@ -1,0 +1,395 @@
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Stripe;
+
+
+namespace Sabio.Services
+{
+    public class PricingService : IPricingService
+    {
+        IDataProvider _data = null;
+        public PricingService(IDataProvider data)
+        {
+            _data = data;
+        }
+
+        #region - Standard Procs - 
+        public int Add(PricingAddRequest model, int userId)
+        {
+            int id = 0;
+            string procName = "[dbo].[Pricings_Insert]";
+            _data.ExecuteNonQuery(procName,
+            inputParamMapper: delegate (SqlParameterCollection col)
+            {
+                AddCommonParams(model, col, userId);
+                SqlParameter idOut = new SqlParameter("@Id", SqlDbType.Int);
+                idOut.Direction = ParameterDirection.Output;
+                col.Add(idOut);
+
+            }, returnParameters: delegate (SqlParameterCollection returnCollection)
+            {
+                object oldId = returnCollection["@Id"].Value;
+                int.TryParse(oldId.ToString(), out id);
+                Console.WriteLine("");
+            }
+            );
+            return id;
+        }
+        public Pricing GetById(int id)
+        {
+            string procName = "[dbo].[Pricings_Select_ById]";
+            Pricing pricing = null;
+
+            _data.ExecuteCmd(procName,
+               inputParamMapper: delegate (SqlParameterCollection param)
+               {
+                   param.AddWithValue("@Id", id);
+               },
+               singleRecordMapper: delegate (IDataReader reader, short set)
+               {
+                   int index = 0;
+                   pricing = MapSinglePricing(reader, ref index);
+               });
+            return pricing;
+        }
+
+        public void Update(PricingUpdateRequest model, int userId)
+        {
+            string procName = "[dbo].[Pricings_Update]";
+
+            _data.ExecuteNonQuery(procName,
+            inputParamMapper: delegate (SqlParameterCollection col)
+            {
+                AddCommonParams(model, col, userId);
+                col.AddWithValue("@Id", model.Id);
+
+            }, returnParameters: null);
+        }
+
+        public Paged<Pricing> GetByServiceTypeId(int pageIndex, int pageSize, int serviceTypeId)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_ByServiceTypeId]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                    parameterCollection.AddWithValue("@ServiceTypeId", serviceTypeId);
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    int index = 0;
+                    Pricing model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+
+        public Paged<Pricing> GetByServiceTypeIdByDistance(int pageIndex, int pageSize, int serviceTypeId, double latitude, double longitude, int distance)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_ByServiceTypeId_OrByDistAndServType]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                    parameterCollection.AddWithValue("@ServiceTypeId", serviceTypeId);
+                    parameterCollection.AddWithValue("@Latitude", latitude);
+                    parameterCollection.AddWithValue("@Longitude", longitude);
+                    parameterCollection.AddWithValue("@Distance", distance);
+
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    int index = 0;
+                    Pricing model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+
+        public void Delete(int Id)
+        {
+            string procName = "[dbo].[Pricings_Delete_ById]";
+
+            _data.ExecuteNonQuery(procName,
+            inputParamMapper: delegate (SqlParameterCollection col)
+            {
+                col.AddWithValue("@Id", Id);
+            }, returnParameters: null);
+
+        }
+        #endregion
+
+        #region - Additional Procs - 
+        public Paged<Pricing> GetBySummaryPriceSearch(int pageIndex, int pageSize, string query)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_SummaryPrice_Search]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                    parameterCollection.AddWithValue("@Query", query);
+
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    int index = 0;
+                    Pricing model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+        public Paged<Pricing> GetByLocation(int pageIndex, int pageSize, int locationId)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_ByLocation]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                    parameterCollection.AddWithValue("@LocationId", locationId);
+
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    int index = 0;
+                    Pricing model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+
+        public Paged<Pricing> GetByOrgId(int pageIndex, int pageSize, int orgId)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_ByOrgId_Paginated]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                    parameterCollection.AddWithValue("@OrgId", orgId);
+
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    Pricing model = new Pricing();
+                    int index = 0;
+                    model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+
+        public Pricing GetByOrgId(int orgId)
+        {
+            string procName = "[dbo].[Pricings_Select_ByOrgId]";
+            Pricing pricing = null;
+
+            _data.ExecuteCmd(procName,
+               inputParamMapper: delegate (SqlParameterCollection param)
+               {
+                   param.AddWithValue("@OrgId", orgId);
+               },
+               singleRecordMapper: delegate (IDataReader reader, short set)
+               {
+                   int index = 0;
+                   pricing = MapSinglePricing(reader, ref index);
+               });
+            return pricing;
+        }
+
+        public Paged<Pricing> GetAll(int pageIndex, int pageSize)
+        {
+            Paged<Pricing> pagedResult = null;
+
+            List<Pricing> result = null;
+
+            int totalCount = 0;
+            string procName = "[dbo].[Pricings_Select_Paged]";
+
+            _data.ExecuteCmd(procName,
+                inputParamMapper: delegate (SqlParameterCollection parameterCollection)
+                {
+                    parameterCollection.AddWithValue("@PageIndex", pageIndex);
+                    parameterCollection.AddWithValue("@PageSize", pageSize);
+                },
+                singleRecordMapper: delegate (IDataReader reader, short set)
+                {
+                    Pricing model = new Pricing();
+                    int index = 0;
+                    model = MapSinglePricing(reader, ref index);
+
+                    if (totalCount == 0)
+                    {
+                        totalCount = reader.GetSafeInt32(index++);
+                    }
+                    if (result == null)
+                    {
+                        result = new List<Pricing>();
+                    }
+                    result.Add(model);
+                }
+            );
+            if (result != null)
+            {
+                pagedResult = new Paged<Pricing>(result, pageIndex, pageSize, totalCount);
+            }
+            return pagedResult;
+        }
+        #endregion
+        private static Pricing MapSinglePricing(IDataReader reader, ref int index)
+        {
+            Pricing pricing = new Pricing();
+
+            pricing.Id = reader.GetSafeInt32(index++);
+            pricing.ServiceName = reader.GetSafeString(index++);
+            pricing.Conditions = reader.GetSafeString(index++);
+            pricing.ServiceType = new LookUp();
+            pricing.ServiceType.Id = reader.GetSafeInt32(index++);
+            pricing.ServiceType.Name = reader.GetString(index++);
+            pricing.Location = new Location();
+            pricing.Location.LineOne = reader.GetSafeString(index++);
+            pricing.Location.LineTwo = reader.GetSafeString(index++);
+            pricing.Location.City = reader.GetSafeString(index++);
+            pricing.State = new State();
+            pricing.State.Code = reader.GetSafeString(index++);
+            pricing.Location.Zip = reader.GetSafeString(index++);
+            pricing.Location.Latitude = reader.GetSafeDouble(index++);
+            pricing.Location.Longitude = reader.GetSafeDouble(index++);
+            pricing.Organization = new Organization();
+            pricing.Organization.Id= reader.GetSafeInt32(index++);
+            pricing.Organization.Name = reader.GetSafeString(index++);
+            pricing.Organization.LogoUrl = reader.GetSafeString(index++);
+            pricing.Organization.BusinessPhone = reader.GetSafeString(index++);
+            pricing.Organization.SiteUrl = reader.GetSafeString(index++);
+            pricing.Cost = reader.GetSafeDecimal(index++);
+            pricing.IsValidated = reader.GetSafeBool(index++);
+            pricing.User = new User();
+            pricing.User.Id = reader.GetSafeInt32(index++);
+            pricing.User.AvatarUrl = reader.GetSafeString(index++);
+            pricing.User.FirstName = reader.GetSafeString(index++);
+            pricing.User.LastName = reader.GetSafeString(index++);
+            return pricing;
+        }
+
+        private static void AddCommonParams(PricingAddRequest model, SqlParameterCollection col, int userId)
+        {
+            col.AddWithValue("@ServiceName", model.ServiceName);
+            col.AddWithValue("@Conditions", model.Conditions);
+            col.AddWithValue("@ServiceTypeId", model.ServiceTypeId);
+            col.AddWithValue("@OrganizationId", model.OrganizationId);
+            col.AddWithValue("@Cost", model.Cost);
+            col.AddWithValue("@IsValidated", model.IsValidated);
+            col.AddWithValue("@CreatedBy", userId);
+            col.AddWithValue("@ModifiedBy", userId);
+
+        }
+    }
+}
