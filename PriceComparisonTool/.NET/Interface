@@ -1,0 +1,26 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Sabio.Services
+{
+    public interface IPricingService
+    {
+        int Add(PricingAddRequest model, int userId);
+        void Update(PricingUpdateRequest model, int userId);
+        Pricing GetById(int id);
+        Paged<Pricing> GetByServiceTypeId(int pageIndex, int pageSize, int serviceTypeId);
+        public Paged<Pricing> GetByServiceTypeIdByDistance(int pageIndex, int pageSize, int serviceTypeId, double latitude, double longitude, int distance);
+        void Delete(int Id);
+        Paged<Pricing> GetBySummaryPriceSearch(int pageIndex, int pageSize, string query);
+        Paged<Pricing> GetByLocation(int pageIndex, int pageSize, int locationId);
+        Paged<Pricing> GetByOrgId(int pageIndex, int pageSize, int orgId);
+        Pricing GetByOrgId(int orgId);
+        Paged<Pricing> GetAll(int pageIndex, int pageSize);
+
+
+
+    }
+}
