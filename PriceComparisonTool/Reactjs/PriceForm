@@ -1,0 +1,305 @@
+import React, { useState, useEffect } from "react";
+import { Card, Row, Col } from "react-bootstrap";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import pricingService from "services/pricingService";
+import toastr from "toastr";
+import pricingFormSchema from "schemas/pricingFormSchema";
+import lookUpService from "services/lookUpService";
+import { useLocation, useParams } from "react-router-dom";
+
+const PricingForm = () => {
+  const [formData, setFormData] = useState({
+    serviceName: "",
+    conditions: "",
+    serviceTypeId: 0,
+    organizationId: 0,
+    cost: 1.0,
+    isValidated: false,
+  });
+
+  const [orgData, setOrgData] = useState({
+    arrayOfOrgs: [],
+    orgComponents: [],
+  });
+
+  const [serviceData, setServiceData] = useState({
+    arrayOfServices: [],
+    serviceComponents: [],
+  });
+
+  const { state } = useLocation();
+  const { priceId } = useParams();
+
+  useEffect(() => {
+    lookUpService
+      .LookUp(["ServiceTypes"])
+      .then(onServiceTypeSuccess)
+      .catch(onServiceTypeError);
+    lookUpService
+      .LookUp(["OrganizationsNames"])
+      .then(onOrgNameSuccess)
+      .catch(onOrgNameError);
+  }, []);
+
+  useEffect(() => {
+    if (state?.type === "Price_Edit" && state.payload) {
+      _logger("state.payload", state.payload);
+
+      setFormData((prevState) => {
+        const priceData = { ...prevState, ...state.payload };
+        return {
+          ...priceData,
+          organizationId: state.payload.organization.id,
+          serviceTypeId: state.payload.serviceType.id,
+        };
+      });
+    }
+  }, [setFormData, state]);
+
+  const onServiceTypeSuccess = (response) => {
+    _logger(response);
+    let arrayOfServicesTwo = response.item.serviceTypes;
+
+    setServiceData((prevState) => {
+      const serviceData = { ...prevState };
+      serviceData.arrayOfServices = arrayOfServicesTwo;
+      serviceData.serviceComponents = arrayOfServicesTwo.map(mapOption);
+      return serviceData;
+    });
+  };
+
+  const onServiceTypeError = (error) => {
+    _logger(error);
+    toastr.error("Services did not load");
+  };
+
+  const handleSubmit = (values) => {
+    _logger("submit clicked");
+    let payload = {
+      ...values,
+      organizationId: parseInt(values.organizationId),
+      serviceTypeId: parseInt(values.serviceTypeId),
+    };
+    if (!priceId) {
+      pricingService
+        .addPricing(payload)
+        .then(onAddPricingSuccess)
+        .catch(onAddPricingError);
+      _logger(values);
+    } else {
+      pricingService
+        .updatePricing(priceId, payload)
+        .then(onUpdatePricingSuccess)
+        .catch(onUpdatePricingError);
+    }
+  };
+  const onUpdatePricingSuccess = (response) => {
+    toastr.success("Pricing Updated!");
+    _logger(response);
+  };
+
+  const onUpdatePricingError = (error) => {
+    toastr.error("Please try again");
+    _logger(error.message);
+  };
+
+  const onAddPricingSuccess = (response) => {
+    toastr.success("Pricing Added!");
+    _logger(response);
+  };
+
+  const onAddPricingError = (error) => {
+    toastr.error("Please try again");
+    _logger(error.message);
+  };
+
+  const onOrgNameSuccess = (response) => {
+    let arrayOfOrgsTwo = response.item.organizationsNames;
+    _logger(response);
+
+    setOrgData((prevState) => {
+      const orgData = { ...prevState };
+      orgData.arrayOfOrgs = arrayOfOrgsTwo;
+      orgData.orgComponents = arrayOfOrgsTwo.map(mapOption);
+      return orgData;
+    });
+  };
+
+  const onOrgNameError = (error) => {
+    _logger(error);
+    toastr.error("Organizations did not load");
+  };
+
+  const mapOption = (anItem) => {
+    return (
+      <option value={anItem.id} key={`${anItem}List-" ${anItem.id}`}>
+        {anItem.name}
+      </option>
+    );
+  };
+
+  return (
+    <React.Fragment>
+      <Row className="align-items-center justify-content-center g-0 min-vh-100">
+        <Col lg={5} md={5} className="py-8 py-xl-0">
+          <Card className="border-0">
+            <Card.Body className="p-6">
+              <div className="mb-4">
+                <div className="d-flex align-items-center mb-4 mb-lg-0"></div>
+              </div>
+              <div>
+                <h4 className="mb-4 display-6">Service Price</h4>
+                <Formik
+                  enableReinitialize={true}
+                  initialValues={formData}
+                  onSubmit={handleSubmit}
+                  validationSchema={pricingFormSchema}
+                >
+                  <Form>
+                    <Row>
+                      <Col lg={12} md={12} className="mb-3">
+                        <div className="mb-3">
+                          <label>
+                            Organization<span className="text-danger">*</span>
+                          </label>
+                          <Field
+                            as="select"
+                            name="organizationId"
+                            className="form-select text-dark"
+                            type="number"
+                          >
+                            <option value="0">Select an Organization</option>
+                            {orgData.orgComponents}
+                          </Field>
+                          <ErrorMessage
+                            name="organizationId"
+                            component="div"
+                            className="text-danger"
+                            type="number"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col md={12} sm={12} className="mb-3">
+                        <div className="mb-3">
+                          <label>
+                            Service Type<span className="text-danger">*</span>
+                          </label>
+                          <Field
+                            as="select"
+                            name="serviceTypeId"
+                            className="form-select text-dark"
+                            type="number"
+                          >
+                            <option value="0">Select a Service</option>
+                            {serviceData.serviceComponents}
+                          </Field>
+                          <ErrorMessage
+                            name="serviceTypeId"
+                            component="div"
+                            className="text-danger"
+                            type="number"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col md={12} sm={12} className="mb-3">
+                        <div className="mb-3">
+                          <label>
+                            Service Name<span className="text-danger">*</span>
+                          </label>
+                          <Field
+                            type="text"
+                            name="serviceName"
+                            className="form-control"
+                            placeholder="Enter service name"
+                          />
+                          <ErrorMessage
+                            name="serviceName"
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col md={12} sm={12} className="mb-3">
+                        <div className="mb-3">
+                          <label>Discount</label>
+                          <Field
+                            type="text"
+                            name="conditions"
+                            className="form-control"
+                            placeholder="Enter applicable discounts"
+                          />
+                          <ErrorMessage
+                            name="conditions"
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col md={12} sm={12} className="mb-3">
+                        <div className="mb-3">
+                          <label>
+                            Price<span className="text-danger">*</span>
+                          </label>
+                          <Field
+                            type="number"
+                            name="cost"
+                            className="form-control"
+                            placeholder="Enter price of service"
+                          />
+                          <ErrorMessage
+                            name="cost"
+                            component="div"
+                            className="text-danger"
+                            type="number"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col className="mb-3 form-check">
+                        <div className="form-check">
+                          <label
+                            className="form-check-label"
+                            htmlFor="flexCheckDefault"
+                          >
+                            Validate
+                          </label>
+                          <Field
+                            type="checkbox"
+                            name="isValidated"
+                            className="form-check-input"
+                          />
+                          <ErrorMessage
+                            name="isValidated"
+                            component="div"
+                            className="text-danger"
+                          />
+                        </div>
+                      </Col>
+
+                      <Col sm={12} md={12}>
+                        <button
+                          type="submit"
+                          name="submit"
+                          className="btn btn-primary"
+                          onSubmit={handleSubmit}
+                        >
+                          Submit
+                        </button>
+                      </Col>
+                    </Row>
+                  </Form>
+                </Formik>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </React.Fragment>
+  );
+};
+
+export default PricingForm;
