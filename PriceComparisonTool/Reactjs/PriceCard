@@ -1,0 +1,180 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import PropTypes from "prop-types";
+import userService from "services/userService";
+import { ListGroup, Button, Collapse } from "react-bootstrap";
+import toastr from "toastr";
+import {
+  Telephone,
+  GeoAltFill,
+  PencilSquare,
+  Globe,
+} from "react-bootstrap-icons";
+
+function PriceCard(props) {
+  const aPrice = props.price;
+  const setGoogleMapCenter = props.setGoogleMapCenter;
+  const navigate = useNavigate();
+  const priceIdToEdit = aPrice.id;
+
+  const [isEditable, setEditable] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  _logger("isEditable", isEditable);
+
+  useEffect(() => {
+    userService
+      .getCurrentUser()
+      .then(onGetCurrUserSuccess)
+      .catch(onGetCurrUserError);
+  }, []);
+
+  const onGetCurrUserSuccess = (response) => {
+    _logger("currentUser", response);
+
+    setEditable(
+      response.item.roles.includes("SysAdmin") ||
+        response.item.roles.includes("OrgAdmin")
+    );
+  };
+
+  const onGetCurrUserError = (error) => {
+    _logger(error);
+    toastr.error("User information did not load");
+  };
+
+  const handleMouseOver = (event) => {
+    _logger(event);
+
+    if (
+      aPrice.location?.latitude &&
+      aPrice.location?.longitude &&
+      setGoogleMapCenter
+    ) {
+      setGoogleMapCenter((prevState) => {
+        const locationData = { ...prevState };
+        locationData.lat = aPrice.location.latitude;
+        locationData.lng = aPrice.location.longitude;
+        return locationData;
+      });
+    }
+  };
+
+  const handleCardClick = (event) => {
+    _logger(event);
+    setOpen(!open);
+  };
+
+  const handleEdit = (event) => {
+    _logger(event);
+    navToUpdatePage(aPrice);
+  };
+
+  const navToUpdatePage = (aPrice) => {
+    const state = { type: "Price_Edit", payload: aPrice };
+    navigate(`/pricings/edit/${priceIdToEdit}`, { state });
+  };
+
+  return (
+    <React.Fragment>
+      <ListGroup className="col-md-9 mx-auto">
+        <ListGroup.Item
+          onMouseOver={handleMouseOver}
+          as="li"
+          className="d-flex align-items-start mb-2 shadow border-secondary"
+          action
+        >
+          <div className="ms-2 me-auto">
+            <h3 className="h4 mb-2 text-truncate-line-2 ">
+              <a
+                target="_blank"
+                rel="noreferrer noopener"
+                href={aPrice.organization?.siteUrl}
+              >
+                <span className="text-dark">{aPrice.organization?.name}</span>
+              </a>
+            </h3>
+            <div>
+              <p className="mb-0">
+                <span className="text-primary h4">
+                  {aPrice.serviceType?.name}
+                </span>{" "}
+                for <span className="h3">${aPrice.cost}</span>
+              </p>
+            </div>{" "}
+            <Button
+              onClick={handleCardClick}
+              aria-controls="example-collapse-text"
+              aria-expanded={open}
+              className="btn-sm my-2"
+            >
+              Details
+            </Button>
+            <Collapse in={open}>
+              <div>
+                <p>
+                  <Telephone size={15} /> {aPrice.organization?.businessPhone}
+                </p>
+                <p>
+                  <GeoAltFill size={15} /> {aPrice.location?.lineOne}{" "}
+                  {aPrice.location?.lineTwo}
+                </p>
+                <p>
+                  {" "}
+                  {aPrice.location?.city}, {aPrice.state?.code}
+                  {aPrice.location?.zip}
+                </p>
+                <p>
+                  <Globe size={15} />{" "}
+                  <a
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    href={aPrice.organization?.siteUrl}
+                  >
+                    {aPrice.organization?.siteUrl}
+                  </a>
+                </p>
+              </div>
+            </Collapse>
+          </div>
+          <div className="col align-self-center"></div>
+          {isEditable && <PencilSquare size={15} onClick={handleEdit} />}
+        </ListGroup.Item>
+      </ListGroup>
+    </React.Fragment>
+  );
+}
+
+PriceCard.propTypes = {
+  setGoogleMapCenter: PropTypes.func,
+  price: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    cost: PropTypes.number.isRequired,
+    organization: PropTypes.shape({
+      siteUrl: PropTypes.string.isRequired,
+      businessPhone: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      logoUrl: PropTypes.string,
+    }),
+    location: PropTypes.shape({
+      lineOne: PropTypes.string.isRequired,
+      lineTwo: PropTypes.string.isRequired,
+      city: PropTypes.string.isRequired,
+      zip: PropTypes.string.isRequired,
+      latitude: PropTypes.number.isRequired,
+      longitude: PropTypes.number.isRequired,
+    }),
+    state: PropTypes.shape({
+      code: PropTypes.string.isRequired,
+    }),
+
+    serviceType: PropTypes.shape({
+      name: PropTypes.string.isRequired,
+    }),
+    user: PropTypes.shape({
+      avatarUrl: PropTypes.string,
+    }),
+  }),
+};
+
+export default PriceCard;
