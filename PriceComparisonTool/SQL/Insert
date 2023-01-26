@@ -1,0 +1,79 @@
+-- =============================================
+-- Author:	Samantha Emerson
+-- Create date: 12/26/2022
+-- Description:	Pricings Insert
+-- Code Reviewer: Kathy Xayasomloth
+
+-- MODIFIED BY: author
+-- MODIFIED DATE:12/1/2020
+-- Code Reviewer: 
+-- Note:
+-- =============================================
+
+ALTER PROC [dbo].[Pricings_Insert]
+
+            @ServiceName nvarchar(100)
+           ,@Conditions nvarchar(500)
+           ,@ServiceTypeId int
+           ,@OrganizationId int
+           ,@Cost decimal(18,2)
+           ,@IsValidated bit
+           ,@CreatedBy int
+           ,@ModifiedBy int
+		   ,@Id int OUTPUT
+
+AS
+
+/*--------------TEST CODE-------------
+
+	DECLARE @Id int = 0
+	
+	DECLARE @ServiceName nvarchar(100) = 'Lorem ipsum'
+           ,@Conditions nvarchar(500) = 'Lorem ipsum'
+           ,@ServiceTypeId int = 3
+           ,@OrganizationId int = 3
+           ,@Cost decimal(18,2) = 1.00
+           ,@IsValidated bit = 1
+           ,@CreatedBy int = 1
+           ,@ModifiedBy int = 1
+
+	EXECUTE dbo.Pricings_Insert
+            @ServiceName
+           ,@Conditions
+           ,@ServiceTypeId
+           ,@OrganizationId
+           ,@Cost
+           ,@IsValidated
+           ,@CreatedBy
+           ,@ModifiedBy
+		   ,@Id
+
+	SELECT *
+	FROM dbo.Pricings
+
+*/------------------------------------
+
+BEGIN
+
+	INSERT INTO [dbo].[Pricings]
+			   ([ServiceName]
+			   ,[Conditions]
+			   ,[ServiceTypeId]
+			   ,[OrganizationId]
+			   ,[Cost]
+			   ,[IsValidated]
+			   ,[CreatedBy]
+			   ,[ModifiedBy])
+     VALUES
+           (@ServiceName
+           ,@Conditions
+           ,@ServiceTypeId
+           ,@OrganizationId
+           ,@Cost
+           ,@IsValidated
+           ,@CreatedBy
+           ,@ModifiedBy)
+
+	SET @Id = SCOPE_IDENTITY()
+
+END 
