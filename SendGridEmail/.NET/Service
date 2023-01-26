@@ -1,0 +1,86 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Options;
+using Sabio.Data.Providers;
+using Sabio.Models.AppSettings;
+using sib_api_v3_sdk.Model;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using SendGrid;
+using SendGrid.Helpers.Mail;
+using sib_api_v3_sdk.Api;
+using Sabio.Services.Interfaces;
+using sib_api_v3_sdk.Client;
+using Sabio.Models.Requests.Emails;
+using Sabio.Models.Domain.Emails;
+
+namespace Sabio.Services
+{
+    public class EmailService: IEmailService
+    {
+        IDataProvider _data = null;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        private AppKeys _appKeys;
+
+        public EmailService(IDataProvider data, IWebHostEnvironment webHostEnvironment, IOptions<AppKeys> appKeys)
+        {
+            _data = data;
+            _webHostEnvironment = webHostEnvironment;
+            _appKeys = appKeys.Value;
+            Configuration.Default.ApiKey.Add("api-key", _appKeys.SendGridApiKey);
+        }
+
+        public string GetGenericTemplate()
+        {
+            string webRootPath = _webHostEnvironment.WebRootPath;
+            string path = "";
+            path = Path.Combine(webRootPath, "EmailTemplates", "MainEmailTemplate.html");
+            string domain = _appKeys.Domain;
+            string template = File.ReadAllText(path).Replace("{{domain}}", domain);
+            return template;
+        }
+
+        public string GetContactUsTemplate()
+        {
+            string webRootPath = _webHostEnvironment.WebRootPath;
+            string path = "";
+            path = Path.Combine(webRootPath, "EmailTemplates", "ContactUsReply.html");
+            string domain = _appKeys.Domain;
+            string template = File.ReadAllText(path).Replace("{{domain}}", domain);
+            return template;
+        }
+
+        public async void SendContactUsEmail(ContactUsAddRequest model)
+        {
+            var from = new SendSmtpEmailSender("ReParrot", _appKeys.ReparrotEmail);
+            var to = new SendSmtpEmailTo(model.Email, $"{model.FirstName} {model.LastName}");
+            List<SendSmtpEmailTo> emailList = new List<SendSmtpEmailTo>();
+            emailList.Add(to);
+            var subject = "Thank you for contacting ReParrot";
+            var htmlContent = GetContactUsTemplate();
+            var msg = new SendSmtpEmail(from, emailList, null, null, htmlContent, null, subject);
+            await SendEmail(msg);
+        }
+
+        public async void SendTestEmail()
+        {
+            SendSmtpEmailSender from = new SendSmtpEmailSender("John Doe", "example@example.com");
+            SendSmtpEmailTo to = new SendSmtpEmailTo("repattor@dispostable.com", "ReParrot Admin");
+            List<SendSmtpEmailTo> emailList = new List<SendSmtpEmailTo>();
+            emailList.Add(to);
+            string subject = "Testing";
+            string htmlContent = GetGenericTemplate();
+            var sendSmtpEmail = new SendSmtpEmail(from, emailList, null, null, htmlContent, null, subject);
+            await SendEmail(sendSmtpEmail);
+        }
+
+        private async Task SendEmail(SendSmtpEmail sendSmtpEmail)
+        {
+            var apiInstance = new TransactionalEmailsApi();
+            var response = await apiInstance.SendTransacEmailAsync(sendSmtpEmail);
+
+            Console.WriteLine(response);
+        }
+    }
+}
