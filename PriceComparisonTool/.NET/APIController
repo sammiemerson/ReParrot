@@ -1,0 +1,331 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System;
+
+namespace Sabio.Web.Api.Controllers
+{
+    [Route("api/pricings")]
+    [ApiController]
+    public class PricingApiController : BaseApiController
+    {
+        private IPricingService _service = null;
+        private IAuthenticationService<int> _authService = null;
+        public PricingApiController(IPricingService service
+            , ILogger<PricingApiController> logger
+            , IAuthenticationService<int> authService) : base(logger)
+        {
+            _service = service;
+            _authService = authService;
+        }
+        
+        [HttpPost]
+        [Authorize(Roles = "SysAdmin, OrgAdmin, OrgMember")]
+        public ActionResult<ItemResponse<int>> Create(PricingAddRequest model)
+        {
+            ObjectResult result = null;
+
+            try
+            {
+                int userId = _authService.GetCurrentUserId();
+
+                int id = _service.Add(model, userId);
+                ItemResponse<int> response = new ItemResponse<int>() { Item = id };
+
+                result = Created201(response);
+
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.ToString());
+                ErrorResponse response = new ErrorResponse(ex.Message);
+
+                return StatusCode(500, response);
+            }
+            return result;
+        }
+
+        [HttpGet("{id:int}")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Pricing>> GetById(int id)
+        {
+            int iCode = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Pricing pricing = _service.GetById(id);
+
+                if (pricing == null)
+                {
+                    iCode = 404;
+                    response = new ErrorResponse("Application resource not found.");
+                }
+                else
+                {
+                    response = new ItemResponse<Pricing> { Item = pricing };
+                }
+            }
+            catch (Exception ex)
+            {
+                iCode = 500;
+                response = new ErrorResponse($"Generic Error: {ex.Message}");
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(iCode, response);
+        }
+
+        [HttpPut("{id:int}")]
+        [Authorize(Roles = "SysAdmin, OrgAdmin")]
+
+        public ActionResult<ItemResponse<int>> Update(PricingUpdateRequest model)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                int userId = _authService.GetCurrentUserId();
+                _service.Update(model, userId);
+
+                response = new SuccessResponse();
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+            }
+
+            return StatusCode(code, response);
+        }
+
+        
+        [HttpGet("servicetype/{serviceTypeId:int}/paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetByServiceType(int pageIndex, int pageSize, int serviceTypeId)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetByServiceTypeId(pageIndex, pageSize, serviceTypeId);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+
+
+        [HttpGet("distance/{distance:int}/paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetByServiceTypeByDistance(int pageIndex, int pageSize, int serviceTypeId, double latitude, double longitude, int distance)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetByServiceTypeIdByDistance(pageIndex, pageSize, serviceTypeId, latitude, longitude, distance);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+
+
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "SysAdmin, Orgadmin")]
+
+        public ActionResult<SuccessResponse> Delete(int id)
+        {
+            int code = 200;
+            BaseResponse response = null;
+            try
+            {
+                _service.Delete(id);
+
+                response = new SuccessResponse();
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+            }
+            return StatusCode(code, response);
+        }
+
+        [HttpGet("pricesearch/paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetByPriceSearch(int pageIndex, int pageSize, string query)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetBySummaryPriceSearch(pageIndex, pageSize, query);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+
+        [HttpGet("location/paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetByLocation(int pageIndex, int pageSize, int locationId)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetByLocation(pageIndex, pageSize, locationId);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+
+        [HttpGet("orgid/paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetByOrgId(int pageIndex, int pageSize, int orgId)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetByOrgId(pageIndex, pageSize, orgId);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+
+        [HttpGet("orgid/{orgId:int}")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Pricing>> GetByOrgId(int orgId)
+        {
+            int iCode = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Pricing pricing = _service.GetByOrgId(orgId);
+
+                if (pricing == null)
+                {
+                    iCode = 404;
+                    response = new ErrorResponse("Application resource not found.");
+                }
+                else
+                {
+                    response = new ItemResponse<Pricing> { Item = pricing };
+                }
+            }
+            catch (Exception ex)
+            {
+                iCode = 500;
+                response = new ErrorResponse($"Generic Error: {ex.Message}");
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(iCode, response);
+        }
+
+        [HttpGet("paginate")]
+        [AllowAnonymous]
+        public ActionResult<ItemResponse<Paged<Pricing>>> GetAll(int pageIndex, int pageSize)
+        {
+            int code = 200;
+            BaseResponse response = null;
+
+            try
+            {
+                Paged<Pricing> page = _service.GetAll(pageIndex, pageSize);
+                if (page == null)
+                {
+                    code = 404;
+                    response = new ErrorResponse("Records Not Found");
+                }
+                else
+                {
+                    response = new ItemResponse<Paged<Pricing>> { Item = page };
+                }
+            }
+            catch (Exception ex)
+            {
+                code = 500;
+                response = new ErrorResponse(ex.Message);
+                base.Logger.LogError(ex.ToString());
+            }
+            return StatusCode(code, response);
+        }
+    }
+}
