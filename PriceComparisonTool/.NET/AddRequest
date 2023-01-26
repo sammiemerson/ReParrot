@@ -1,0 +1,30 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Sabio.Models.Requests.Pricings
+{
+    public class PricingAddRequest
+    {
+        [Required]
+        [StringLength(100)]
+        public string ServiceName { get; set; }
+        [StringLength(500)]
+        public string Conditions { get; set; }
+        [Required]
+        [Range(1, int.MaxValue)]
+        public int ServiceTypeId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int OrganizationId { get; set; }
+        [Required]
+        [Range(0, 9999999999999999.99)]
+        public decimal Cost { get; set; }
+        [Required]
+        public bool IsValidated { get; set; }
+
+    }
+}
