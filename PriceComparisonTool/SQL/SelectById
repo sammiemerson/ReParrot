@@ -1,0 +1,67 @@
+-- =============================================
+-- Author:	Samantha Emerson
+-- Create date: 12/24/2022
+-- Description:	Pricings Select By Id
+-- Code Reviewer: Kathy Xayasomloth
+
+-- MODIFIED BY: author
+-- MODIFIED DATE:12/1/2020
+-- Code Reviewer:
+-- Note:
+-- =============================================
+
+ALTER PROC [dbo].[Pricings_Select_ById]
+
+			@Id int
+
+AS
+
+/*--------------TEST CODE-------------
+
+	DECLARE @Id int = 2
+
+	EXECUTE dbo.Pricings_Select_ById @Id
+
+*/------------------------------------
+
+BEGIN
+
+	SELECT    p.Id
+			, p.ServiceName
+			, p.Conditions
+			, st.Id
+			, st.Name
+			, l.LineOne
+			, l.LineTwo
+			, l.City
+			, s.Code
+			, l.Zip
+			, l.Latitude
+			, l.Longitude
+			, o.Id
+			, o.Name
+			, o.LogoUrl
+			, o.BusinessPhone
+			, o.SiteUrl
+			, p.Cost
+			, p.IsValidated
+			, u.Id
+			, u.AvatarUrl
+			, u.FirstName
+			, u.LastName
+
+	FROM dbo.Pricings AS p
+		INNER JOIN dbo.ServiceTypes AS st
+			ON p.ServiceTypeId = st.Id
+		INNER JOIN dbo.Organizations AS o
+			ON p.OrganizationId = o.Id
+		INNER JOIN dbo.Locations AS l
+			ON p.LocationId = l.Id
+		INNER JOIN dbo.Users AS u
+			ON p.CreatedBy = u.Id
+		INNER JOIN dbo.States AS s
+			ON l.StateId = s.Id
+
+	WHERE p.Id = @Id
+
+END
