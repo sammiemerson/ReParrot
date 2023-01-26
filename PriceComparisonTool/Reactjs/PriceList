@@ -1,0 +1,430 @@
+import React, { useEffect, useState, useRef } from "react";
+import { Col, Row, Container } from "react-bootstrap";
+import pricingService from "services/pricingService";
+import lookUpService from "services/lookUpService";
+import PriceCard from "./PriceCard";
+import Pagination from "rc-pagination";
+import "rc-pagination/assets/index.css";
+import locale from "rc-pagination/lib/locale/en_US";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  MarkerF,
+  Autocomplete,
+} from "@react-google-maps/api";
+import toastr from "toastr";
+
+const PricingList = () => {
+  const [priceData, setPriceData] = useState({
+    arrayOfPrices: [],
+    priceComponents: [],
+  });
+
+  const [formData, setFormData] = useState({
+    serviceTypeId: 0,
+    distance: 0,
+    latitude: 0,
+    longitude: 0,
+  });
+
+  const [formAddress] = useState("");
+
+  const [paginate, setPaginate] = useState({
+    index: 0,
+    total: 25,
+    pageSize: 4,
+  });
+
+  const [serviceData, setServiceData] = useState({
+    arrayOfServices: [],
+    serviceComponents: [],
+    serviceId: 0,
+  });
+
+  const [mapCenter, setMapCenter] = useState({
+    lat: 34.0522,
+    lng: -118.2437,
+  });
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    libraries: ["places"],
+  });
+
+  const [autocompleteData, setAutocompleteData] = useState(null);
+  const autoCompleteRef = useRef();
+
+  useEffect(() => {
+    lookUpService
+      .LookUp(["ServiceTypes"])
+      .then(onServiceTypeSuccess)
+      .catch(onServiceTypeError);
+  }, []);
+
+  useEffect(() => {
+    if (formData?.distance === 0) {
+      pricingService
+        .getAllPricing(paginate.index, paginate.pageSize)
+        .then(onSelectAllPricingSuccess)
+        .catch(onSelectAllPricingError);
+    }
+
+    if (formData?.distance > 0) {
+      pricingService
+        .getByServiceTypeIdByDistance(
+          paginate.index,
+          paginate.pageSize,
+          formData.serviceTypeId,
+          formData.latitude,
+          formData.longitude,
+          formData.distance
+        )
+        .then(onGetServTypeIdSuccess)
+        .catch(onGetServTypeIdError);
+    }
+  }, [paginate.index]);
+
+  const onServiceTypeSuccess = (response) => {
+    let arrayOfServicesTwo = response.item.serviceTypes;
+
+    setServiceData((prevState) => {
+      const serviceData = { ...prevState };
+      serviceData.arrayOfServices = arrayOfServicesTwo;
+      serviceData.serviceComponents = arrayOfServicesTwo.map(mapOption);
+      return serviceData;
+    });
+  };
+
+  const onServiceTypeError = (error) => {
+    _logger(error);
+    toastr.error("Services did not load");
+  };
+
+  const onSelectAllPricingSuccess = (response) => {
+    _logger(response);
+    let arrayOfPricesTwo = response.item.pagedItems;
+
+    setPriceData((prevState) => {
+      const priceData = { ...prevState };
+      priceData.arrayOfPrices = arrayOfPricesTwo;
+      priceData.priceComponents = arrayOfPricesTwo.map(mapPrice);
+      return priceData;
+    });
+
+    setPaginate((prevState) => {
+      const newPageData = { ...prevState, total: response.item.totalCount };
+      return newPageData;
+    });
+  };
+
+  const onSelectAllPricingError = (error) => {
+    _logger(error.message);
+    toastr.error("Prices did not load");
+  };
+
+  const mapPrice = (aPrice) => {
+    return (
+      <PriceCard
+        price={aPrice}
+        key={"Pricing" + aPrice.id}
+        priceData={priceData}
+        setGoogleMapCenter={setMapCenter}
+      />
+    );
+  };
+
+  const onPageChangeHandler = (pageNumber) => {
+    _logger("PageChangeHandler pageNumber ->", pageNumber);
+
+    setPaginate((prevState) => {
+      const updatedPage = { ...prevState, index: pageNumber - 1 };
+      return updatedPage;
+    });
+  };
+
+  const mapOption = (anItem) => {
+    return (
+      <option value={anItem.id} key={`${anItem}List-" ${anItem.id}`}>
+        {anItem.name}
+      </option>
+    );
+  };
+
+  if (!isLoaded) {
+    return <div>Google Maps not loaded.</div>;
+  }
+
+  const onGetServTypeIdSuccess = (response) => {
+    _logger(response);
+    let arrayOfPricesTwo = response.item.pagedItems;
+
+    setPriceData((prevState) => {
+      const priceData = { ...prevState };
+      priceData.arrayOfPrices = arrayOfPricesTwo;
+      priceData.priceComponents = arrayOfPricesTwo.map(mapPrice);
+      return priceData;
+    });
+
+    setPaginate((prevState) => {
+      const newPageData = { ...prevState, total: response.item.totalCount };
+      return newPageData;
+    });
+  };
+
+  const onGetServTypeIdError = (error) => {
+    _logger(error);
+    toastr.error("Service type not found, please try again");
+  };
+
+  const onFormChange = (event) => {
+    const nameOfField = event.target.name;
+
+    setFormData((prevState) => {
+      const formData = { ...prevState };
+      formData[nameOfField] = event.target.value;
+      return formData;
+    });
+  };
+
+  const onClickSubmit = (event) => {
+    event.preventDefault();
+    pricingService
+      .getByServiceTypeIdByDistance(
+        0,
+        paginate.pageSize,
+        formData.serviceTypeId,
+        formData.latitude,
+        formData.longitude,
+        formData.distance
+      )
+      .then(onGetServTypeIdDistSuccess)
+      .catch(onGetServTypeIdDistError);
+  };
+
+  const onGetServTypeIdDistSuccess = (data) => {
+    _logger(data);
+    const arrayofFilteredPrices = data.item.pagedItems;
+    setPriceData((prevState) => {
+      const priceData = { ...prevState };
+      priceData.arrayOfPrices = arrayofFilteredPrices;
+      priceData.priceComponents = arrayofFilteredPrices.map(mapPrice);
+      return priceData;
+    });
+
+    setPaginate((prevState) => {
+      const newPageData = {
+        ...prevState,
+        total: data.item.totalCount,
+      };
+      return newPageData;
+    });
+  };
+
+  const onGetServTypeIdDistError = (error) => {
+    _logger(error);
+    toastr.error("No records found");
+  };
+
+  const onClickReset = (e) => {
+    e.preventDefault();
+    autoCompleteRef.current.value = "";
+
+    setFormData((prevState) => {
+      const formData = { ...prevState };
+      formData.serviceTypeId = 0;
+      formData.distance = 0;
+    });
+
+    setMapCenter((prevState) => {
+      const mapCenter = { ...prevState };
+      mapCenter.lat = 34.0522;
+      mapCenter.lng = -118.2437;
+      return mapCenter;
+    });
+
+    pricingService
+      .getAllPricing(paginate.index, paginate.pageSize)
+      .then(onSelectAllPricingSuccess)
+      .catch(onSelectAllPricingError);
+  };
+
+  const onLoad = (autocomplete) => {
+    setAutocompleteData(autocomplete);
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteData !== null) {
+      const addressObject = autocompleteData.getPlace();
+      const currLat = addressObject.geometry?.location?.lat();
+      const currLng = addressObject.geometry?.location?.lng();
+
+      setLatLng(currLat, currLng);
+
+      setMapCenter((prevState) => {
+        const mapCenter = { ...prevState };
+        mapCenter.lat = currLat;
+        mapCenter.lng = currLng;
+        return mapCenter;
+      });
+    } else {
+      toastr.error("Autocomplete is not loaded yet!");
+    }
+  };
+
+  const setLatLng = (lat, lng) => {
+    setFormData((prevState) => {
+      const formData = { ...prevState };
+      formData.latitude = lat;
+      formData.longitude = lng;
+      return formData;
+    });
+  };
+
+  if (!isLoaded) {
+    return <div>Google Maps did not load.</div>;
+  }
+
+  return (
+    <React.Fragment>
+      <form>
+        <Row className="my-6">
+          <Col lg={3} md={3} sm={4} className="justify-content-start">
+            <h1 className="mb-lg-0 mx-16 display-4">Prices</h1>
+          </Col>{" "}
+          <Col
+            lg={2}
+            md={2}
+            sm={6}
+            className="mb-3 mx-1 top-0 right-0 justify-content-end"
+          >
+            <div className="mb-3">
+              <label>Select a Service</label>
+              <select
+                key={`ServiceTypeId-${formData?.serviceTypeId}`}
+                as="select"
+                name="serviceTypeId"
+                className="form-select text-dark"
+                type="number"
+                value={formData?.serviceTypeId || 0}
+                onChange={onFormChange}
+              >
+                <option value="0">Select a Service</option>
+                {serviceData.serviceComponents}
+              </select>
+            </div>
+          </Col>
+          <Col
+            lg={2}
+            md={2}
+            sm={6}
+            className="mb-3 mx-1 top-0 right-0 justify-content-end"
+          >
+            <div className="mb-3">
+              <label>
+                Enter Address<span className="text-danger">*</span>
+              </label>
+              <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
+                <input
+                  key={`Address-${formAddress}`}
+                  ref={autoCompleteRef}
+                  type="text"
+                  name="formAddress"
+                  className="form-control text-dark"
+                  placeholder="Enter an address"
+                />
+              </Autocomplete>
+            </div>
+          </Col>
+          <Col
+            lg={2}
+            md={2}
+            sm={6}
+            className="mb-3 mx-1 top-0 right-0 justify-content-end"
+          >
+            <div className="mb-3">
+              <label>
+                Distance<span className="text-danger">*</span>
+              </label>
+              <select
+                key={`Distance-${formData?.distance}`}
+                as="select"
+                name="distance"
+                className="form-select text-dark"
+                type="number"
+                value={formData?.distance}
+                onChange={onFormChange}
+              >
+                <option value="0">Select a Distance</option>
+                <option value="1">1 mile</option>
+                <option value="5">5 miles</option>
+                <option value="10">10 miles</option>
+                <option value="25">25 miles</option>
+                <option value="50">50 miles</option>
+                <option value="100">100 miles</option>
+              </select>
+            </div>
+          </Col>
+          <Col lg={2} md={1} sm={2} className="mt-4">
+            <div className="mb-3">
+              <button
+                type="submit"
+                className="btn btn-outline-primary btn-sm mx-1"
+                onClick={onClickSubmit}
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm mx-3"
+                onClick={onClickReset}
+              >
+                Reset
+              </button>
+            </div>
+          </Col>
+        </Row>
+      </form>
+
+      <Container fluid className="bg-light">
+        <Row className="align-items-start min-vh-100">
+          <Col lg={6} md={6} sm={12} className="justify-content-start">
+            <div className="row mx-4">{priceData?.priceComponents} </div>
+            <Pagination
+              onChange={onPageChangeHandler}
+              index={paginate.index + 1}
+              total={paginate.total}
+              pageSize={paginate.pageSize}
+              locale={locale}
+              className="text-start my-4 text-center"
+            />
+          </Col>
+          <Col
+            lg={6}
+            md={6}
+            sm={12}
+            className="d-lg-flex align-items-start w-lg-50 min-vh-lg-100 position-fixed-lg bg-cover bg-light top-0 right-0 justify-content-start"
+          >
+            <GoogleMap
+              mapContainerStyle={{
+                width: "550px",
+                height: "550px",
+              }}
+              center={mapCenter}
+              zoom={10}
+              options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: true,
+                fullscreenControl: false,
+              }}
+            >
+              <MarkerF position={mapCenter} />
+            </GoogleMap>
+          </Col>
+        </Row>
+      </Container>
+    </React.Fragment>
+  );
+};
+
+export default PricingList;
