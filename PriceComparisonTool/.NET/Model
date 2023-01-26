@@ -1,0 +1,26 @@
+using Sabio.Models.Domain.Locations;
+using Sabio.Models.Domain.Organizations;
+using Sabio.Models.Domain.Users;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Sabio.Models.Domain.Pricings
+{
+    public class Pricing
+    {
+        public int Id { get; set; }
+        public string ServiceName { get; set; }
+        public string Conditions { get; set; }
+        public LookUp ServiceType { get; set; }
+        public Location Location { get; set; }
+        public State State { get; set; }
+        public Organization Organization { get; set; }
+        public decimal Cost { get; set; }
+        public bool IsValidated { get; set; }
+        public User User { get; set; }
+       
+    }
+}
